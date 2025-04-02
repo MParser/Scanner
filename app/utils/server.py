@@ -46,6 +46,9 @@ class Server:
             raise Exception(f"获取网关DNS清单失败: {json.dumps(response, ensure_ascii=False)}")
         
     async def ndsfile_filter_files(self, ndsId: str, date_type: str, file_patchs: str):
+        '''
+        过滤文件清单，获取任务规则内的文件清单以便后续扫描子包
+        '''
         if not ndsId:
             raise Exception("NDS id 不能为空")
         if not date_type:
@@ -82,6 +85,7 @@ class Gateway:
         return await self.ws_client.is_connected()
     
     async def scan_nds(self, nds: str, path: str, filter: str):
+    
         try:
             response = await self.ws_client.send_request(
                 api="scan", 

@@ -67,14 +67,24 @@ class Scanner:
                     mdt_files_nds = await gateway.scan_nds(nds_config.get("id"), nds_config.get("MDT_Path"), nds_config.get("MDT_Filter"))
                     if mdt_files_nds.code == 200:
                         mdt_new_files = await server.ndsfile_filter_files(nds_config.get("id"), "MDT", mdt_files_nds.data)
-                    log.info(f"新发现MRO文件:{str(mro_new_files)}")
-                    log.info(f"新发现MDT文件:{mdt_new_files}")
-                    await asyncio.sleep(self.max_interval)
+                    # log.info(f"新发现MRO文件:{str(mro_new_files)}")
+                    for mro_file in mro_new_files.get("missing"):
+                        print(mro_file)
+                        mro_info = await gateway.zip_info(nds_config.get("id"), mro_file)
+                        print(mro_info)
+                        # 上传文件清单 ndsid, date_type, info
+
+
+                    
+
+
+                    # log.info(f"新发现MDT文件:{mdt_new_files}")
+                    # await asyncio.sleep(self.max_interval)
                     
                     
                     
                 except Exception as e:
-                    log.error(f"扫描失败: {str(e)}")
+                    log.error(f"扫描失败:{str(e)}")
                 await asyncio.sleep(self.min_interval)
             if gateway.is_connected():
                 await gateway.disconnect()
