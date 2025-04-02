@@ -1,6 +1,6 @@
 import httpx
 from dataclasses import dataclass
-from app.core.logger import logger
+from app.core.logger import log
 from typing import Optional, Dict, Any, Union
 
 @dataclass
@@ -49,7 +49,7 @@ class HttpClient:
             data = response.read()
         else:
             data = response.text
-        logger.debug(f"HTTP Response: {response.status_code} {response.reason_phrase}")
+        log.debug(f"HTTP Response: {response.status_code} {response.reason_phrase}")
         return data
 
     async def get(self, endpoint: str, **kwargs) -> Union[Dict[str, Any], bytes, str]:
@@ -67,3 +67,4 @@ class HttpClient:
     async def put(self, endpoint: str, **kwargs) -> Union[Dict[str, Any], bytes, str]:
         """发送PUT请求"""
         return await self.request('PUT', endpoint, **kwargs)
+
