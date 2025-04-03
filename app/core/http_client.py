@@ -40,7 +40,11 @@ class HttpClient:
         """发送HTTP请求"""
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
         await self.ensure_client()
-        response = await self._client.request(method, url, **kwargs)
+        # 确保 self._client 不为 None 后再调用 request 方法
+        if self._client:
+            response = await self._client.request(method, url, **kwargs)
+        else:
+            raise RuntimeError("HTTP client is not initialized")
         response.raise_for_status()
         content_type = response.headers.get('content-type', '')
         if 'application/json' in content_type:

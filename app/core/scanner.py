@@ -13,7 +13,13 @@ async def start():
             raise ValueError("未配置网关")
         if not response.get("ndsLinks") or response.get("ndsLinks") == []:
             raise ValueError("未配置NDS")
-        gateway_nds = await server.gateway_nds(response.get("gateway").get("id"))
+        gateway = response.get("gateway")
+        if gateway is None:
+            raise ValueError("网关信息为空")
+        gateway_id = gateway.get("id")
+        if gateway_id is None:
+            raise ValueError("网关ID为空")
+        gateway_nds = await server.gateway_nds(gateway_id)
         if not gateway_nds or gateway_nds == []:
             raise ValueError("绑定网关DNS清单为空, 无法启动扫描器")
         

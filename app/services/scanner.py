@@ -12,13 +12,17 @@ server = Server()
 
 
 class ResponseModel:
-    def __init__(self, code: int = 200, data: dict = None, message: str = ""):
+    def __init__(self, code: int = 200, data: dict = {}, message: str = ""):
         self.code = code
         self.data = data
         self.message = message
     
     def __str__(self):
-        return json.dumps(self.dict(), ensure_ascii=False)
+        return json.dumps({
+            'code': self.code,
+            'data': self.data,
+            'message': self.message
+        }, ensure_ascii=False)
 
 
 class Scanner:
@@ -29,7 +33,7 @@ class Scanner:
     """
 
     def __init__(self):
-        self.gateway: Dict = None
+        self.gateway: Dict[str, Gateway] = {}
         self._tasks: Dict[str, asyncio.Task] = {}  # 修复类型注解
         self.max_interval = 300 # 扫描间隔，单位秒
         self.min_interval = 60 # 最小扫描间隔，单位秒
@@ -62,24 +66,20 @@ class Scanner:
                 try:
                     await gateway.connect()
                     mro_files_nds = await gateway.scan_nds(nds_config.get("id"), nds_config.get("MRO_Path"), nds_config.get("MRO_Filter"))
-                    if mro_files_nds.code == 200:
-                        mro_new_files = await server.ndsfile_filter_files(nds_config.get("id"), "MRO", mro_files_nds.data)
                     mdt_files_nds = await gateway.scan_nds(nds_config.get("id"), nds_config.get("MDT_Path"), nds_config.get("MDT_Filter"))
-                    if mdt_files_nds.code == 200:
-                        mdt_new_files = await server.ndsfile_filter_files(nds_config.get("id"), "MDT", mdt_files_nds.data)
-                    # log.info(f"新发现MRO文件:{str(mro_new_files)}")
-                    for mro_file in mro_new_files.get("missing"):
-                        print(mro_file)
-                        mro_info = await gateway.zip_info(nds_config.get("id"), mro_file)
-                        print(mro_info)
-                        # 上传文件清单 ndsid, date_type, info
 
+                    if isinstance(mro_files_nds, ResponseModel) and mro_files_nds.code == 200:
+                        mro_new_files = await server.ndsfile_filter_files(nds_config.get("id"), "MRO", str(mro_files_nds.data))
+                        files = mro_new_files.get("missing", []) if mro_new_files else []
+                        for mro_file in files:
+                            print(mro_file)
+                            mro_info = await gateway.zip_info(nds_config.get("id"), mro_file)
+                            print(mro_info)
+                            # 上传文件清单 ndsid, date_type, info
+                    if isinstance(mdt_files_nds, ResponseModel) and mdt_files_nds.code == 200:
+                        mdt_new_files = await server.ndsfile_filter_files(nds_config.get("id"), "MDT", str(mdt_files_nds.data))
 
-                    
-
-
-                    # log.info(f"新发现MDT文件:{mdt_new_files}")
-                    # await asyncio.sleep(self.max_interval)
+                    await asyncio.sleep(self.max_interval)
                     
                     
                     
@@ -100,11 +100,19 @@ class Scanner:
         if not response.get("gateway"):
             self.running = False
             raise ValueError("未配置网关")
-        self.gateway = response.get("gateway")
+        # 确保 gateway 是字典类型，避免类型不匹配
+        gateway_data = response.get("gateway", {})
+        if isinstance(gateway_data, dict):
+            self.gateway = gateway_data
+        else:
+            self.gateway = {}
         if not response.get("ndsLinks") or response.get("ndsLinks") == []:
             self.running = False
             raise ValueError("未配置NDS")
-        gateway_nds = await server.gateway_nds(response.get("gateway").get("id"))
+        gateway = response.get("gateway")
+        if gateway is None:
+            raise ValueError("网关配置不存在")
+        gateway_nds = await server.gateway_nds(gateway.get("id"))
         if not gateway_nds or gateway_nds == []:
             self.running = False
             raise ValueError("绑定网关DNS清单为空, 无法启动扫描器")
@@ -112,7 +120,8 @@ class Scanner:
         
         ndsList =  response.get("ndsLinks")
         try:
-            for config in ndsList:
+            # 确保 ndsList 不为 None 且可迭代
+            for config in (ndsList or []):
                 if not config.get("id", None):
                     continue
                 self._tasks[str(config.get("id"))] = asyncio.create_task(self.scan_loop(config.get("nds")))

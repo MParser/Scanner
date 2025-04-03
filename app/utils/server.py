@@ -17,35 +17,36 @@ class Server:
             "id": config.get("app.id"),
             "port": config.get("app.port"),
         })
-        if response.get("code") == 200:
+        if isinstance(response, dict) and response.get("code") == 200:
             return response.get("data")
         else:
             raise Exception(f"注册失败: {json.dumps(response, ensure_ascii=False)}")
         
     async def unregister(self):
         response = await self.server.put(f"scanner/{config.get('app.id')}", json={ "status": 0 })
-        if response.get("code") == 200:
+        if isinstance(response, dict) and response.get("code") == 200:
             return response.get("data")
         else:
             raise Exception(f"注销失败: {json.dumps(response, ensure_ascii=False)}")
         
-    async def info(self):
+    async def info(self) -> dict:
         response = await self.server.get(f"scanner/{config.get('app.id')}")
-        if response.get("code") == 200:
-            return response.get("data")
+        if isinstance(response, dict) and response.get("code") == 200:
+            return response.get("data", {})
         else:
             raise Exception(f"获取信息失败: {json.dumps(response, ensure_ascii=False)}")
     
-    async def gateway_nds(self, gateway_id: str=None):
+    async def gateway_nds(self, gateway_id: str):
         if not gateway_id:
             raise Exception("Gateway_id 不能为空")
         response = await self.server.get(f"gateway/{gateway_id}")
-        if response.get("code") == 200:
-            return response.get("data").get("ndsLinks")
+        if isinstance(response, dict) and response.get("code") == 200:
+            data = response.get("data")
+            return data.get("ndsLinks") if data else None
         else:
             raise Exception(f"获取网关DNS清单失败: {json.dumps(response, ensure_ascii=False)}")
         
-    async def ndsfile_filter_files(self, ndsId: str, date_type: str, file_patchs: str):
+    async def ndsfile_filter_files(self, ndsId: str, date_type: str, file_patchs: str) -> dict:
         '''
         过滤文件清单，获取任务规则内的文件清单以便后续扫描子包
         '''
@@ -60,8 +61,8 @@ class Server:
             "date_type": date_type,
             "file_paths": file_patchs
         })
-        if response.get("code") == 200:
-            return response.get("data")
+        if isinstance(response, dict) and response.get("code") == 200:
+            return response.get("data", [])
         else:
             raise Exception(f"获取文件失败: {json.dumps(response, ensure_ascii=False)}")
         
