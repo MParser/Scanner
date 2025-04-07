@@ -25,7 +25,7 @@ class WebSocketResponse(Exception):
     message: str = "success"
     data: Optional[Dict[str, Any]] = None
     request_id: Optional[str] = None
-    bytes: Optional[bytes] = None
+    Bytes: Optional[bytes] = None
 
     def __post_init__(self):
         super().__init__(self.message)
@@ -70,6 +70,7 @@ class WebSocketClient:
     async def is_connected(self) -> bool:
         if self.ws is None or self.ws.closed:
             return False
+        
         try:
             await self.ws.send(str(WebSocketRequest(api="check_connection")))
             return True
@@ -148,7 +149,7 @@ class WebSocketClient:
                 future.set_exception(error_response)
                 return
                 
-            response.bytes = b"".join(self._file_chunks)
+            response.Bytes = b"".join(self._file_chunks)
             self._current_file_request = None
             self._file_chunks = []
                 

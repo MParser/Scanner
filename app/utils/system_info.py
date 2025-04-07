@@ -1,13 +1,13 @@
 import psutil
 import platform
-from typing import Dict
+from typing import Any, Dict
 from datetime import datetime
 
 class SystemInfo:
     """系统信息工具类"""
     
     @staticmethod
-    def get_system_stats() -> Dict[str, str]:
+    def get_system_stats() -> Dict[str, Any]:
         """
         获取系统状态信息
         

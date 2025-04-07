@@ -1,17 +1,11 @@
 import json
-
 from app.core.config import config
-
 from app.core.http_client import HttpClient, HttpConfig
-
 from app.core.ws_client import WebSocketClient, WebSocketResponse
-
 from uuid import uuid4
-
 
 class Server:
     def __init__(self):
-
         self.server = HttpClient(
 
             f"{config.get('server.protocol')}://{config.get('server.host')}:{config.get('server.port')}/api/",

@@ -36,7 +36,7 @@ async def test_client(client_id: str):
                 "size": 534019
             }
         )
-        print(f"[{client_id}] 读取数据大小:", len(read_response.bytes) if read_response.bytes else 0)
+        print(f"[{client_id}] 读取数据大小:", len(read_response.Bytes) if read_response.Bytes else 0)
         
     except WebSocketResponse as e:
         print(f"[{client_id}] 错误:", e)
