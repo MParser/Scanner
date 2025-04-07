@@ -60,6 +60,7 @@ class Scanner:
             gateway = Gateway(self.gateway, f"Scanner-NDS-{nds_config.get('id')}")
             while self.running:
                 try:
+                    mro_new_files = []
                     await gateway.connect()
                     mro_files_nds = await gateway.scan_nds(nds_config.get("id"), nds_config.get("MRO_Path"), nds_config.get("MRO_Filter"))
                     if mro_files_nds.code == 200:
@@ -68,6 +69,14 @@ class Scanner:
                     if mdt_files_nds.code == 200:
                         mdt_new_files = await server.ndsfile_filter_files(nds_config.get("id"), "MDT", mdt_files_nds.data)
                     
+                    # 合并新文件
+                    new_files = mro_new_files + mdt_new_files
+
+                    # 扫描新文件子包
+                    for file in new_files:
+                        data = await gateway.zip_info(nds=nds_config.get("id"), path=file)
+                        if data.code == 200:
+                            log.info(f"扫描子包: {data.data}")
                     
                 except Exception as e:
                     log.error(f"扫描失败:{str(e)}")
