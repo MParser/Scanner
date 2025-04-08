@@ -60,6 +60,7 @@ class Scanner:
             gateway = Gateway(self.gateway, f"Scanner-NDS-{nds_config.get('id')}")
             while self.running:
                 try:
+                    start_time = datetime.now()
                     mro_new_files = []
                     await gateway.connect()
                     mro_files_nds = await gateway.scan_nds(nds_config.get("id"), nds_config.get("MRO_Path"), nds_config.get("MRO_Filter"))
@@ -69,18 +70,71 @@ class Scanner:
                     if mdt_files_nds.code == 200:
                         mdt_new_files = await server.ndsfile_filter_files(nds_config.get("id"), "MDT", mdt_files_nds.data)
                     
-                    # 合并新文件
-                    new_files = mro_new_files + mdt_new_files
+                    # 合并新文件并保留类型信息
+                    new_files = [
+                        *[{'path': path, 'type': 'MRO'} for path in mro_new_files],
+                        *[{'path': path, 'type': 'MDT'} for path in mdt_new_files]
+                    ]
 
                     # 扫描新文件子包
-                    for file in new_files:
-                        data = await gateway.zip_info(nds=nds_config.get("id"), path=file)
-                        if data.code == 200:
-                            log.info(f"扫描子包: {data.data}")
+                    nds_id = int(nds_config.get("id"))  # 提前获取ID
+                    batch_data = []  # 存储待处理的数据
+                    batch_size = 0  # 当前批次的数据大小
+                    MAX_BATCH_SIZE = 10 * 1024 * 1024  # 10MB
                     
+                    for file in new_files:
+                        data = await gateway.zip_info(nds=nds_config.get("id"), path=file['path'])
+                        if data.code == 200:
+                            # 批量添加ndsId和data_type
+                            current_data = [{**item, 'ndsId': nds_id, 'data_type': file['type']} for item in data.data]
+                            current_size = len(json.dumps(current_data).encode('utf-8'))
+                            
+                            # 如果当前批次加上新数据超过5MB，先处理当前批次
+                            if batch_size + current_size > MAX_BATCH_SIZE and batch_data:
+                                try:
+                                    response = await server.batch_add_tasks(batch_data)
+                                    if response.get('code') == 429:  # redis高负荷，暂停写入
+                                        batch_data = []  # 清空未成功提交的数据
+                                        batch_size = 0
+                                        break
+                                    elif response.get('code') == 200:
+                                        log.info(f"批量添加文件成功: {response.get('data')}")
+                                        # 成功提交后再重置批次数据
+                                        batch_data = []
+                                        batch_size = 0
+                                    else:
+                                        log.error(f"批量添加文件失败: {response.get('message')}")
+                                        batch_data = []  # 提交失败也清空数据
+                                        batch_size = 0
+                                except Exception as e:
+                                    log.error(f"批量添加文件失败: {str(e)}")
+                                    batch_data = []
+                                    batch_size = 0
+                            
+                            # 添加新数据到批次
+                            batch_data.extend(current_data)
+                            batch_size += current_size
+                    
+                    # 处理最后一批数据（如果有）
+                    if batch_data:
+                        try:
+                            response = await server.batch_add_tasks(batch_data)
+                            if response.get('code') == 200:
+                                log.info(f"批量添加文件成功: {response.get('data')}")
+                            else:
+                                log.error(f"批量添加文件失败: {response.get('message')}")
+                        except Exception as e:
+                            log.error(f"批量添加文件失败: {str(e)}")
+                            
                 except Exception as e:
                     log.error(f"扫描失败:{str(e)}")
-                await asyncio.sleep(self.min_interval)
+                
+                end_time = datetime.now()
+                elapsed_time = (end_time - start_time).total_seconds()
+                interval = max(self.min_interval, self.max_interval - elapsed_time)
+                await asyncio.sleep(interval)
+                
+
             if gateway.is_connected():
                 await gateway.disconnect()
         except Exception as e:

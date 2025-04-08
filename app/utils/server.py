@@ -66,7 +66,16 @@ class Server:
             return response.get("data")
         else:
             raise Exception(f"获取文件失败: {json.dumps(response, ensure_ascii=False)}")
+
+    async def batch_add_tasks(self, tasks: list):
+        '''
+        批量添加ZIP INFO信息
+        '''
+        if not tasks:
+            raise Exception("tasks 不能为空")
         
+        response = await self.server.post("ndsfiles/batchAddTasks", json=tasks)
+        return response
 
 
 class Gateway:
